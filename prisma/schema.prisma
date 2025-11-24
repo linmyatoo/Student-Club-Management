@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  ADMIN
+  CLUB_PRESIDENT
+  CLUB_MEMBER
+}
+
+enum EventStatus {
+  UPCOMING
+  ONGOING
+  COMPLETED
+  CANCELLED
+}
+
+enum MembershipStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  name          String
+  studentId     String?   @unique
+  role          Role      @default(STUDENT)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  clubMemberships ClubMembership[]
+  events        Event[]
+  attendances   Attendance[]
+  
+  @@map("users")
+}
+
+model Club {
+  id          String   @id @default(cuid())
+  name        String
+  description String   @db.Text
+  category    String
+  logo        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  members     ClubMembership[]
+  events      Event[]
+  
+  @@map("clubs")
+}
+
+model ClubMembership {
+  id        String           @id @default(cuid())
+  userId    String
+  clubId    String
+  role      Role             @default(CLUB_MEMBER)
+  status    MembershipStatus @default(PENDING)
+  joinedAt  DateTime         @default(now())
+  
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  club      Club             @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, clubId])
+  @@map("club_memberships")
+}
+
+model Event {
+  id          String      @id @default(cuid())
+  title       String
+  description String      @db.Text
+  location    String
+  startTime   DateTime
+  endTime     DateTime
+  maxAttendees Int?
+  status      EventStatus @default(UPCOMING)
+  clubId      String
+  createdById String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  club        Club        @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  createdBy   User        @relation(fields: [createdById], references: [id])
+  attendances Attendance[]
+  
+  @@map("events")
+}
+
+model Attendance {
+  id        String   @id @default(cuid())
+  eventId   String
+  userId    String
+  status    String   @default("registered")
+  createdAt DateTime @default(now())
+  
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([eventId, userId])
+  @@map("attendances")
+}
